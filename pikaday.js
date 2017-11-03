@@ -1,3 +1,4 @@
+/* eslint-disable */
 /*!
  * Pikaday
  *
@@ -89,6 +90,10 @@
     isDate = function(obj)
     {
         return (/Date/).test(Object.prototype.toString.call(obj)) && !isNaN(obj.getTime());
+    },
+
+    cloneDate = function(date) {
+        return new Date(date.getTime())
     },
 
     isWeekend = function(date)
@@ -271,7 +276,9 @@
             nextMonth     : 'Next Month',
             months        : ['January','February','March','April','May','June','July','August','September','October','November','December'],
             weekdays      : ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
-            weekdaysShort : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+            weekdaysShort : ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+            today         : 'Today',
+            confirm       : 'Confirm'
         },
 
         // Theme Classname
@@ -287,7 +294,10 @@
         onDraw: null,
 
         // Enable keyboard input
-        keyboardInput: true
+        keyboardInput: true,
+
+        // whether to render time picker
+        showTime: false
     },
 
 
@@ -373,7 +383,7 @@
             arr.push('<th></th>');
         }
         for (i = 0; i < 7; i++) {
-            arr.push('<th scope="col"><abbr title="' + renderDayName(opts, i) + '">' + renderDayName(opts, i, true) + '</abbr></th>');
+            arr.push('<th scope="col"><abbr>' + renderDayName(opts, i, true) + '</abbr></th>');
         }
         return '<thead><tr>' + (opts.isRTL ? arr.reverse() : arr).join('') + '</tr></thead>';
     },
@@ -429,10 +439,10 @@
         }
 
         if (c === 0) {
-            html += '<button class="pika-prev' + (prev ? '' : ' is-disabled') + '" type="button">' + opts.i18n.previousMonth + '</button>';
+            html += '<button class="pika-prev pika-prev-month' + (prev ? '' : ' is-disabled') + '" type="button">' + opts.i18n.previousMonth + '</button>';
         }
         if (c === (instance._o.numberOfMonths - 1) ) {
-            html += '<button class="pika-next' + (next ? '' : ' is-disabled') + '" type="button">' + opts.i18n.nextMonth + '</button>';
+            html += '<button class="pika-next pika-next-month' + (next ? '' : ' is-disabled') + '" type="button">' + opts.i18n.nextMonth + '</button>';
         }
 
         return html += '</div>';
@@ -443,6 +453,58 @@
         return '<table cellpadding="0" cellspacing="0" class="pika-table" role="grid" aria-labelledby="' + randId + '">' + renderHead(opts) + renderBody(data) + '</table>';
     },
 
+    renderTime = function(instance, c, hour, minute)
+    {
+        if (!instance._o.showTime) return '';
+
+        var prevButtonClasses = ['pika-prev', 'pika-prev-hour'];
+        var nextButtonClasses = ['pika-next', 'pika-next-hour'];
+
+        if (hour === 0) prevButtonClasses.push('is-disabled');
+        if (hour === 23) nextButtonClasses.push('is-disabled');
+
+        hour = hour < 10 ? '0' + hour : hour;
+        minute = minute < 10 ? '0' + minute : minute;
+
+        var html = '';
+        var prevButton = '<button class="' + prevButtonClasses.join(' ') + '" type="button">前一小时</button>';
+        var nextButton = '<button class="' + nextButtonClasses.join(' ') + '" type="button">后一小时</button>';
+        var hourMinute = '<div class="pika-time"><div class="pika-hour">' + hour + '&nbsp;:&nbsp;' + '</div><div class="pika-minute">' + minute + '</div></div>';
+
+        html += '<div class="pika-time-wrapper clearfix">' + prevButton + hourMinute + nextButton + '</div>';
+
+        return html;
+    },
+
+    renderHourSelect = function(instance)
+    {
+        if (!instance._o.showTime) return '';
+
+        var html = '<div class="pika-hour-select is-hidden">';
+        var hoursHtml = [];
+        var selectedHour = instance.time.hour;
+
+        for (let i = 0; i < 24; i++) {
+            var hour = i < 10 ? '0' + i : i;
+            var className = i === selectedHour ? 'pika-hour-cell is-selected' : 'pika-hour-cell';
+            var hourHtml = '<div class="' + className + '" data-pika-hour="' + hour + '">' + hour + '</div>';
+
+            hoursHtml.push(hourHtml);
+        }
+
+        return html += hoursHtml.join('') + '</div>';
+    },
+
+    renderButtons = function (instance)
+    {
+        if (!instance._o.showTime) return '';
+
+        var html = '<div class="pika-buttons-wrapper clearfix">'
+        var todayButton = '<button class="pika-goto-today" type="button">' + instance._o.i18n.today + '</button>'
+        var confirmButton = '<button class="pika-confirm" type="button">' + instance._o.i18n.confirm + '</button>'
+
+        return html += todayButton + confirmButton + '</div>'
+    },
 
     /**
      * Pikaday constructor
@@ -468,18 +530,45 @@
                     self.setDate(new Date(target.getAttribute('data-pika-year'), target.getAttribute('data-pika-month'), target.getAttribute('data-pika-day')));
                     if (opts.bound) {
                         sto(function() {
-                            self.hide();
+                            if (!opts.showTime) self.hide();
                             if (opts.blurFieldOnSelect && opts.field) {
                                 opts.field.blur();
                             }
                         }, 100);
                     }
                 }
-                else if (hasClass(target, 'pika-prev')) {
+                else if (hasClass(target, 'pika-hour') || hasClass(target, 'pika-minute')) {
+                    if (hasClass(self.hourSelectEl, 'is-hidden')) {
+                        removeClass(self.hourSelectEl, 'is-hidden');
+                    }
+                }
+                else if (hasClass(target, 'pika-hour-cell')) {
+                    var hour = parseInt(target.getAttribute('data-pika-hour'), 10);
+                    var date = new Date(self._d.getTime());
+
+                    date.setHours(hour);
+                    self.setTime(date);
+                    addClass(self.hourSelectEl, 'is-hidden');
+                    self.draw();
+                }
+                else if (hasClass(target, 'pika-prev-month')) {
                     self.prevMonth();
                 }
-                else if (hasClass(target, 'pika-next')) {
+                else if (hasClass(target, 'pika-next-month')) {
                     self.nextMonth();
+                }
+                else if (hasClass(target, 'pika-prev-hour')) {
+                    self.prevHour();
+                }
+                else if (hasClass(target, 'pika-next-hour')) {
+                    self.nextHour();
+                }
+                else if (hasClass(target, 'pika-goto-today')) {
+                    self.setDate(new Date())
+                }
+                else if (hasClass(target, 'pika-confirm')) {
+                    self._o.onSelect.call(self, self.getDate());
+                    self.hide()
                 }
             }
             if (!hasClass(target, 'pika-select')) {
@@ -657,8 +746,13 @@
             } else {
                 self.gotoDate(defDate);
             }
+
+            self.setTime(defDate, true);
         } else {
-            self.gotoDate(new Date());
+            var now = new Date()
+
+            self.gotoDate(now);
+            self.setTime(now, true);
         }
 
         if (opts.bound) {
@@ -703,6 +797,8 @@
             opts.disableWeekends = !!opts.disableWeekends;
 
             opts.disableDayFn = (typeof opts.disableDayFn) === 'function' ? opts.disableDayFn : null;
+
+            opts.showTime = !!(opts.showTime);
 
             var nom = parseInt(opts.numberOfMonths, 10) || 1;
             opts.numberOfMonths = nom > 4 ? 4 : nom;
@@ -821,7 +917,7 @@
                 fireEvent(this._o.field, 'change', { firedBy: this });
             }
             if (!preventOnSelect && typeof this._o.onSelect === 'function') {
-                this._o.onSelect.call(this, this.getDate());
+                if (!this._o.showTime) this._o.onSelect.call(this, this.getDate());
             }
         },
 
@@ -856,7 +952,48 @@
                 }
             }
 
+            if (this._o.showTime && this.time) {
+                this._d.setHours(this.time.hour);
+            }
+
             this.adjustCalendars();
+        },
+
+        prevHour: function() {
+            if (this.time.hour > 0) {
+                var date = cloneDate(this._d)
+
+                date.setHours(this.time.hour - 1)
+                this.setTime(date)
+                this.draw()
+            }
+        },
+
+        nextHour: function() {
+            if (this.time.hour < 23) {
+                var date = cloneDate(this._d)
+
+                date.setHours(this.time.hour + 1);
+                this.setTime(date);
+                this.draw();
+            }
+        },
+
+        setTime: function(date, preventOnSelect) {
+            if (!this._o.showTime) return;
+            if (!isDate(date)) return;
+
+            var hour = date.getHours();
+
+            this.time = {
+                hour: hour,
+                minute: 0
+            }
+            this._d.setHours(hour);
+
+            if (!preventOnSelect && typeof this._o.onSelect === 'function') {
+                // this._o.onSelect.call(this, this.getDate());
+            }
         },
 
         adjustDate: function(sign, days) {
@@ -1007,10 +1144,11 @@
             randId = 'pika-title-' + Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 2);
 
             for (var c = 0; c < opts.numberOfMonths; c++) {
-                html += '<div class="pika-lendar">' + renderTitle(this, c, this.calendars[c].year, this.calendars[c].month, this.calendars[0].year, randId) + this.render(this.calendars[c].year, this.calendars[c].month, randId) + '</div>';
+                html += '<div class="pika-lendar">' + renderHourSelect(this) + renderTitle(this, c, this.calendars[c].year, this.calendars[c].month, this.calendars[0].year, randId) + this.render(this.calendars[c].year, this.calendars[c].month, randId) + renderTime(this, c, this.time.hour, this.time.minute) + renderButtons(this) + '</div>';
             }
 
             this.el.innerHTML = html;
+            this.hourSelectEl = document.getElementsByClassName('pika-hour-select')[0]
 
             if (opts.bound) {
                 if(opts.field.type !== 'hidden') {
@@ -1114,7 +1252,8 @@
             for (var i = 0, r = 0; i < cells; i++)
             {
                 var day = new Date(year, month, 1 + (i - before)),
-                    isSelected = isDate(this._d) ? compareDates(day, this._d) : false,
+                    thisDate = new Date(cloneDate(this._d).setHours(0, 0, 0, 0)),
+                    isSelected = isDate(this._d) ? compareDates(day, thisDate) : false,
                     isToday = compareDates(day, now),
                     hasEvent = opts.events.indexOf(day.toDateString()) !== -1 ? true : false,
                     isEmpty = i < before || i >= (days + before),
