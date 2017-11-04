@@ -547,7 +547,7 @@
                     var date = new Date(self._d.getTime());
 
                     date.setHours(hour);
-                    self.setTime(date);
+                    self.setTime(date, true);
                     addClass(self.hourSelectEl, 'is-hidden');
                     self.draw();
                 }
@@ -964,7 +964,7 @@
                 var date = cloneDate(this._d)
 
                 date.setHours(this.time.hour - 1)
-                this.setTime(date)
+                this.setTime(date, true)
                 this.draw()
             }
         },
@@ -974,7 +974,7 @@
                 var date = cloneDate(this._d)
 
                 date.setHours(this.time.hour + 1);
-                this.setTime(date);
+                this.setTime(date, true);
                 this.draw();
             }
         },
@@ -992,7 +992,7 @@
             this._d.setHours(hour);
 
             if (!preventOnSelect && typeof this._o.onSelect === 'function') {
-                // this._o.onSelect.call(this, this.getDate());
+                this._o.onSelect.call(this, this.getDate());
             }
         },
 
