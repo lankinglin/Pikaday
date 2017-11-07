@@ -564,7 +564,13 @@
                     self.nextHour();
                 }
                 else if (hasClass(target, 'pika-goto-today')) {
-                    self.setDate(new Date())
+                    var rightNow = new Date()
+
+                    if (self._o.showTime) {
+                        self.setTime(rightNow, true)
+                    }
+
+                    self.setDate(rightNow)
                 }
                 else if (hasClass(target, 'pika-confirm')) {
                     self._o.onSelect.call(self, self.getDate());
